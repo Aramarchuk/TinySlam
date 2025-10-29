@@ -1,5 +1,7 @@
 import numpy as np
-from slam_core import BaseSLAM
+import math
+
+from slam_core import BaseSLAM, BaseLandmarkSLAM
 from robot import integrate_motion, clamp_inside_walls
 import config as cfg
 
@@ -37,14 +39,24 @@ class OdometryOnlySLAM(BaseSLAM):
 
     def __init__(self, initial_pose, N):
         super().__init__(initial_pose, N)
-        # YOUR CODE HERE IF NEEDED
-        raise NotImplementedError
+        self.direction = 0
+
 
     def update(self, odometry_input, lidar_hits, **kwargs):
-        # YOUR CODE HERE
-        raise NotImplementedError
+        v, omega, gt_pose = odometry_input
+        self.x_est += math.cos(self.direction) * v
+        self.y_est += math.sin(self.direction   ) * v
+        self.direction += omega
 
-    # Don't forget to update map!
+        self._update_map_from_pose()
+
+    def _update_map_from_pose(self):
+        ix, iy = int(round(self.x_est)), int(round(self.y_est))
+        ix = np.clip(ix, 0, self.N - 1)
+        iy = np.clip(iy, 0, self.N - 1)
+
+        if self.robot_map[iy, ix] != 0.0:
+            self.robot_map[iy, ix] = 1.0
 
 
 class TinySLAM(BaseSLAM):

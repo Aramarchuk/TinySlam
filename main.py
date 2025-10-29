@@ -8,13 +8,13 @@ from robot import clamp_inside_walls, integrate_motion, get_noisy_odometry
 import lidar
 
 from slam_core import BaseLandmarkSLAM
-from slam_implementations import GroundTruthSLAM
+from slam_implementations import GroundTruthSLAM, OdometryOnlySLAM, TinySLAM
 import visualizer
 import landmark_utils
 
 SLAM_ALGORITHMS = {
     "gt": GroundTruthSLAM,
-    # YOUR CODE HERE
+    "oo": OdometryOnlySLAM,
 }
 
 
