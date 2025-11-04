@@ -17,6 +17,11 @@ def create_real_map(N):
     real_map[40:43, 30:35] = 0.0
     real_map[32:35, 5:9] = 0.0
 
+    real_map[0, :] = 0.0
+    real_map[:, 0] = 0.0
+    real_map[N-1, :] = 0.0
+    real_map[:, N-1] = 0.0
+
     return real_map
 
 def create_robot_map(N):

@@ -11,7 +11,8 @@ LOG_FILE = "simulation_log.csv"
 # --- LIDAR ---
 LIDAR_MAX_RANGE = 30.0  # maximum ray range (in cells)
 # Ray angles relative to the robot: 0=forward, pi/2=left, pi=back, -pi/2=right
-LIDAR_ANGLES_RELATIVE = np.array([0, np.pi / 2, np.pi, -np.pi / 2])
+NUMBER_OF_RAYS = 6
+LIDAR_ANGLES_RELATIVE = np.array([i * np.pi / NUMBER_OF_RAYS * 2 for i in range(NUMBER_OF_RAYS)])
 LIDAR_STEP_SIZE = 0.1 # raycasting precision/step
 # --- Robot Motion ---
 x_start, y_start = 28, 22       # start position
@@ -28,20 +29,20 @@ GT_COLOR = "magenta"
 EST_COLOR = "cyan"
 
 # --- Motion Noise ---
-MOTION_NOISE_V = 0.05
-MOTION_NOISE_OMEGA = 0.02
+MOTION_NOISE_V = 0.1
+MOTION_NOISE_OMEGA = 0.04
 
 TS_OBSTACLE = 0
 TS_NO_OBSTACLE = 65500
 TS_INIT_VAL = (TS_OBSTACLE + TS_NO_OBSTACLE) // 2
 TS_QUALITY = 16
-TS_HOLE_WIDTH = 0.3
+TS_HOLE_WIDTH = 5.0
 TS_EXTEND_LIDAR = 0.8
 
 # --- Monte Carlo ---
-TS_N_PARTICLES = 5
+TS_N_PARTICLES = 10
 TS_SEARCH_RANGE_XY = 0.01
-TS_SEARCH_RANGE_THETA = 0.01
+TS_SEARCH_RANGE_THETA = 0.001
 
 # --- LandMark Sensor ---
 
