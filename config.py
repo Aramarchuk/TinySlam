@@ -2,8 +2,8 @@ import numpy as np
 
 # --- Simulation ---
 N = 10                  # map size
-steps = 100             # total steps
-snapshot_every = 20     # save frame every N steps
+steps = 30            # total steps
+snapshot_every = 1    # save frame every N steps
 OUTPUT_DIR = "sim_steps" # output folder for results
 RANDOM_SEED = 42
 LOG_FILE = "simulation_log.csv"
@@ -21,6 +21,8 @@ omega = 0.22                        # angular velocity (rad/step)
 dt = 1.0                            # time step
 MARGIN = 1.2                        # margin from walls for clamping
 
+ALPHA = 0.5                        # map update rate
+
 # --- Visualization ---
 GT_COLOR = "magenta"
 EST_COLOR = "cyan"
@@ -36,7 +38,7 @@ TS_QUALITY = 16
 TS_HOLE_WIDTH = 0.3
 
 # --- Monte Carlo ---
-TS_N_PARTICLES = 30
+TS_N_PARTICLES = 10
 TS_SEARCH_RANGE_XY = 0.5
 TS_SEARCH_RANGE_THETA = 0.1
 

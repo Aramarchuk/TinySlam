@@ -49,3 +49,24 @@ def draw_bw(ax, arr, title, show_ticks=True):
         ax.xaxis.set_major_formatter(plt.FormatStrFormatter('%d'))
         ax.yaxis.set_major_formatter(plt.FormatStrFormatter('%d'))
         ax.grid(True, linestyle=':', alpha=0.6, color='grey')
+
+def bresenham(x0, y0, x1, y1):
+    x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+    dx = abs(x1 - x0)
+    dy = -abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx + dy
+    points = []
+    while True:
+        points.append((x0, y0))
+        if x0 == x1 and y0 == y1:
+            break
+        e2 = 2 * err
+        if e2 >= dy:
+            err += dy
+            x0 += sx
+        if e2 <= dx:
+            err += dx
+            y0 += sy
+    return points
