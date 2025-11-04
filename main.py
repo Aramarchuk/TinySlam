@@ -111,6 +111,14 @@ def run_simulation(slam_):
         )
         odometry_input = (v_noisy, omega_noisy, cfg.dt)
 
+        if map_type == "landmark":
+            slam_algo.update(odometry_input, observations, gt_pose=pose_gt) #
+        else:
+            if isinstance(slam_algo, TinySLAM): #
+                lidar_data_for_slam = local_hit_points
+            else:
+                lidar_data_for_slam = hit_points
+            slam_algo.update(odometry_input, lidar_data_for_slam, gt_pose=pose_gt)
 
         # --- Get Pose Estimate ---
         x_est, y_est, theta_est = slam_algo.get_pose()
@@ -150,15 +158,6 @@ def run_simulation(slam_):
                     hit_points
                 )
             print(f"Saved snapshot for step {t}")
-
-        if map_type == "landmark":
-            slam_algo.update(odometry_input, observations, gt_pose=pose_gt) #
-        else:
-            if isinstance(slam_algo, TinySLAM): #
-                lidar_data_for_slam = local_hit_points
-            else:
-                lidar_data_for_slam = hit_points
-            slam_algo.update(odometry_input, lidar_data_for_slam, gt_pose=pose_gt) #
 
         # --- Move (Update REAL world) ---
         if t < cfg.steps:
