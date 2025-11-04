@@ -130,17 +130,28 @@ class TinySLAM(BaseSLAM):
 
     def update(self, odometry_input, lidar_hits_local, **kwargs):
 
+        # self.x_est += self.odometry_input[0] * math.cos(self.direction)
+        # self.y_est += self.odometry_input[0] * math.sin(self.direction)
+        #
+        # self.direction += self.odometry_input[1]
+
+        self.x_est = kwargs['gt_pose'][0]
+        self.y_est = kwargs['gt_pose'][1]
+        self.direction = kwargs['gt_pose'][2]
+
         self.scan_match(lidar_hits_local)
 
         new_map = self.robot_map.copy()
         old_map = self.robot_map
 
+        lidar_local_extended = lidar_hits_local.copy()
+
         for i in range(len(lidar_hits_local)):
             vector_len = math.sqrt(lidar_hits_local[i][0] ** 2 + lidar_hits_local[i][1] ** 2)
-            if vector_len != float("inf"):
-                lidar_hits_local[i] = ((lidar_hits_local[i][0]) / vector_len * (vector_len + 0.5), (lidar_hits_local[i][1]) / vector_len * (vector_len + 0.5))
+            if vector_len != float("inf") and vector_len > 0.001:
+                lidar_local_extended[i] = ((lidar_hits_local[i][0]) / vector_len * (vector_len + cfg.TS_EXTEND_LIDAR), (lidar_hits_local[i][1]) / vector_len * (vector_len + cfg.TS_EXTEND_LIDAR))
 
-        lidar_hits_global = self.get_absolute_lidar_points(lidar_hits_local)
+        lidar_hits_global = self.get_absolute_lidar_points(lidar_local_extended)
 
         for i in range(len(lidar_hits_global)):
             el = lidar_hits_global[i]
@@ -156,29 +167,24 @@ class TinySLAM(BaseSLAM):
                 point_clipped = (np.clip(point[0], 0, self.N - 1), np.clip(point[1], 0, self.N - 1))
                 update_point(old_map, new_map, point_clipped, cfg.TS_OBSTACLE)
 
-                dist = math.sqrt(lidar_hits_local[i][0] ** 2 + lidar_hits_local[i][1] ** 2)
-                add = TS_HOLE_WIDTH / (2 * dist)
-                x2, y2 = lidar_hits_local[i][0] * (1 + add), lidar_hits_local[i][1] * (1 + add)
-
-                global_hole = self.get_absolute_lidar_points([(x2, y2)])[0]
-
-                points = bresenham(
-                    xp,
-                    yp,
-                    np.clip(global_hole[0], -1, self.N),
-                    np.clip(global_hole[1], -1, self.N)
-                )
-                for point in points:
-                    point_clipped = (np.clip(point[0], 0, self.N - 1), np.clip(point[1], 0, self.N - 1))
-                    update_point(old_map, new_map, point_clipped, cfg.TS_OBSTACLE)
-
-        self.x_est += self.odometry_input[0] * math.cos(self.direction)
-        self.y_est += self.odometry_input[0] * math.sin(self.direction)
-
-        self.direction += self.odometry_input[1]
+                # dist = math.sqrt(lidar_hits_local[i][0] ** 2 + lidar_hits_local[i][1] ** 2)
+                # add = TS_HOLE_WIDTH / (2 * dist)
+                # x2, y2 = lidar_hits_local[i][0] * (1 + add), lidar_hits_local[i][1] * (1 + add)
+                #
+                # global_hole = self.get_absolute_lidar_points([(x2, y2)])[0]
+                #
+                # points = bresenham(
+                #     xp,
+                #     yp,
+                #     np.clip(global_hole[0], -1, self.N),
+                #     np.clip(global_hole[1], -1, self.N)
+                # )
+                # for point in points:
+                #     point_clipped = (np.clip(point[0], 0, self.N - 1), np.clip(point[1], 0, self.N - 1))
+                #     update_point(old_map, new_map, point_clipped, cfg.TS_OBSTACLE)
+        self.odometry_input = odometry_input
 
         self.robot_map = new_map
-        self.odometry_input = odometry_input
 
 class EkfStubSLAM(BaseLandmarkSLAM):
     """

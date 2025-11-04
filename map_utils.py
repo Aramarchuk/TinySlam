@@ -6,13 +6,17 @@ def create_real_map(N):
     Creates the Ground Truth map (1.0 = free, 0.0 = wall).
     """
     real_map = np.ones((N, N), dtype=float)
-    real_map[0, :] = 0.0
-    real_map[-1, :] = 0.0
-    real_map[:, 0] = 0.0
-    real_map[:, -1] = 0.0
-    real_map[2:4, 2:4] = 0.0
-    real_map[7, 3] = 0.0
-    real_map[5:8, 7] = 0.0
+    real_map[5:8, 5:10] = 0.0
+    real_map[12:15, 8:11] = 0.0
+    real_map[8:11, 20:23] = 0.0
+    real_map[20:24, 12:16] = 0.0
+    real_map[15:18, 30:34] = 0.0
+    real_map[28:31, 25:29] = 0.0
+    real_map[35:38, 15:19] = 0.0
+    real_map[25:28, 38:42] = 0.0
+    real_map[40:43, 30:35] = 0.0
+    real_map[32:35, 5:9] = 0.0
+
     return real_map
 
 def create_robot_map(N):

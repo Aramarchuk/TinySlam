@@ -1,27 +1,27 @@
 import numpy as np
 
 # --- Simulation ---
-N = 10                  # map size
-steps = 30            # total steps
-snapshot_every = 1    # save frame every N steps
+N = 50                  # map size
+steps = 200           # total steps
+snapshot_every = 20    # save frame every N steps
 OUTPUT_DIR = "sim_steps" # output folder for results
 RANDOM_SEED = 42
 LOG_FILE = "simulation_log.csv"
 
 # --- LIDAR ---
-LIDAR_MAX_RANGE = 6.0  # maximum ray range (in cells)
+LIDAR_MAX_RANGE = 30.0  # maximum ray range (in cells)
 # Ray angles relative to the robot: 0=forward, pi/2=left, pi=back, -pi/2=right
 LIDAR_ANGLES_RELATIVE = np.array([0, np.pi / 2, np.pi, -np.pi / 2])
 LIDAR_STEP_SIZE = 0.1 # raycasting precision/step
 # --- Robot Motion ---
-x_start, y_start = 4.5, 4.5         # start position
+x_start, y_start = 28, 22       # start position
 theta_start = 0.0                   # start angle (facing right)
-v = 0.35                            # linear velocity (cells/step)
-omega = 0.22                        # angular velocity (rad/step)
+v = 0.7                             # linear velocity (cells/step)
+omega = 0.12                        # angular velocity (rad/step)
 dt = 1.0                            # time step
 MARGIN = 1.2                        # margin from walls for clamping
 
-ALPHA = 0.5                        # map update rate
+ALPHA = 0.4                        # map update rate
 
 # --- Visualization ---
 GT_COLOR = "magenta"
@@ -36,6 +36,7 @@ TS_NO_OBSTACLE = 65500
 TS_INIT_VAL = (TS_OBSTACLE + TS_NO_OBSTACLE) // 2
 TS_QUALITY = 16
 TS_HOLE_WIDTH = 0.3
+TS_EXTEND_LIDAR = 0.8
 
 # --- Monte Carlo ---
 TS_N_PARTICLES = 5
