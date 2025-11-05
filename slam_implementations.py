@@ -236,12 +236,10 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         self.state[2] = initial_pose[2]
 
         self.covariance = np.eye(self.state_size) * 0.1 # Covariance matrix
-        self.covariance[0:3, 0:3] = np.diag([0.01, 0.01, 0.01])
+        self.covariance[0:3, 0:3] = np.diag([0.1, 0.1, 0.1])
 
         self.landmarks = {}
         self.next_landmark_id = 0
-        self.min_observations = 3
-        self.unconfirmed_landmarks = {}
 
         self.Q = np.diag([cfg.MOTION_NOISE_V**2, cfg.MOTION_NOISE_OMEGA**2])
         self.R = np.diag([cfg.LM_NOISE_RANGE**2, cfg.LM_NOISE_BEARING**2])
@@ -274,8 +272,8 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         H[1, 0] = dy / (predicted_range ** 2)
         H[1, 1] = -dx / (predicted_range ** 2)
         H[1, 2] = -1
-        H[1, 3 + 2 * idx] = -dy / (predicted_range ** 2)
-        H[1, 4 + 2 * idx] = dx / (predicted_range ** 2)
+        H[1, 3 + 2 * idx] = dy / (predicted_range ** 2)
+        H[1, 4 + 2 * idx] = - dx / (predicted_range ** 2)
 
         S = H @ self.covariance @ H.T + self.R
         K = self.covariance @ H.T @ np.linalg.inv(S)
@@ -309,8 +307,8 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         self.state[4 + 2 * idx] = landmark_y
         self.next_landmark_id += 1
 
-        self.covariance[3 + 2 * idx, 3 + 2 * idx] = 1.0
-        self.covariance[4 + 2 * idx, 4 + 2 * idx] = 1.0
+        # self.covariance[3 + 2 * idx, 3 + 2 * idx] = 1.0
+        # self.covariance[4 + 2 * idx, 4 + 2 * idx] = 1.0
 
         self.covariance[3 + 2 * idx: 5 + 2 * idx, 3 + 2 * idx: 5 + 2 * idx] = P_ll
         self.covariance[0:3, 3 + 2 * idx: 5 + 2 * idx] = P_rl
@@ -362,8 +360,6 @@ class EkfStubSLAM(BaseLandmarkSLAM):
                 self.add_landmark(obs_id, range_meas, bearing_meas)
 
     def update(self, odometry_input, landmark_observations, **kwargs):
-        v, omega, dt = odometry_input
-
         self.prediction(odometry_input)
 
         self.correction_landmarks(landmark_observations)
