@@ -145,7 +145,7 @@ class TinySLAM(BaseSLAM):
         lidar_local_extended = lidar_hits_local.copy()
 
 
-        self.scan_match(lidar_local_extended, self.scan_match_coefficient / cfg.steps)
+        self.scan_match(lidar_local_extended, 1.0)
         self.scan_match_coefficient += 1
 
         new_map = self.robot_map.copy()
