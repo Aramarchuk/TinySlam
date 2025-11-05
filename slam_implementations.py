@@ -83,43 +83,70 @@ class TinySLAM(BaseSLAM):
         return self.robot_map / 65600.0
 
     def scan_match(self, lidar_hits_local, coef):
-        best_dx = 0
-        best_dy = 0
-        best_dtheta = 0
 
-        search_range_xy = cfg.TS_SEARCH_RANGE_XY
-        search_range_theta = cfg.TS_SEARCH_RANGE_THETA
+        search_range_v = cfg.MOTION_NOISE_V * 2
+        search_range_theta = cfg.MOTION_NOISE_OMEGA
 
         best_score = float("inf")
 
-        for dx in np.linspace(-search_range_xy, search_range_xy, cfg.TS_N_PARTICLES):
-            for dy in np.linspace(-search_range_xy, search_range_xy, cfg.TS_N_PARTICLES):
-                for dtheta in np.linspace(-search_range_theta, search_range_theta, cfg.TS_N_PARTICLES):
-                    theta = self.direction + dtheta
-                    new_x = self.x_est + dx
-                    new_y = self.y_est + dy
-                    score = 0
-                    for el in lidar_hits_local:
-                        el = (np.clip(el[0], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE), np.clip(el[1], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE))
-                        x_hit = np.clip(new_x + el[0] * math.cos(theta) - el[1] * math.sin(theta), -1, self.N)
-                        y_hit = np.clip(new_y + el[0] * math.sin(theta) + el[1] * math.cos(theta), -1, self.N)
+        dv = 0.0
+        dtheta = 0.0
+        theta = self.direction + dtheta
+        new_x = self.x_est
+        new_y = self.y_est
+        score = 0
+        for el in lidar_hits_local:
+            el = (np.clip(el[0], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE),
+                  np.clip(el[1], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE))
+            x_hit = np.clip(new_x + el[0] * math.cos(theta) - el[1] * math.sin(theta), -1, self.N)
+            y_hit = np.clip(new_y + el[0] * math.sin(theta) + el[1] * math.cos(theta), -1, self.N)
 
-                        points = bresenham(new_x, new_y, x_hit, y_hit)[:-1]
-                        for point in points:
-                            xp, yp = int(np.clip(point[0], 0, self.N - 1)), int(np.clip(point[1], 0, self.N - 1))
-                            score += (cfg.TS_NO_OBSTACLE - self.robot_map[yp, xp])
-                        score /= len(points)
+            points = bresenham(new_x, new_y, x_hit, y_hit)[:-1]
+            for point in points:
+                xp, yp = int(np.clip(point[0], 0, self.N - 1)), int(np.clip(point[1], 0, self.N - 1))
+                score += (cfg.TS_NO_OBSTACLE - self.robot_map[yp, xp])
+            score /= len(points)
 
+            if el[0] in (-cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE) or el[1] in (-cfg.LIDAR_MAX_RANGE,
+                                                                                 cfg.LIDAR_MAX_RANGE):
+                score += (cfg.TS_NO_OBSTACLE - self.robot_map[
+                    int(np.clip(y_hit, 0, self.N - 1)), int(np.clip(x_hit, 0, self.N - 1))])
+            else:
+                score += self.robot_map[int(np.clip(y_hit, 0, self.N - 1)), int(np.clip(x_hit, 0, self.N - 1))]
+        if score < best_score:
+            best_score = score
+            best_dv = dv
+            best_dtheta = dtheta
+        for dtheta in np.linspace(-search_range_theta, search_range_theta, cfg.TS_N_PARTICLES):
+            for dv in np.linspace(-search_range_v, search_range_v, cfg.TS_N_PARTICLES):
+                theta = self.direction + dtheta
+                new_x = self.x_est + dv * math.cos(theta)
+                new_y = self.y_est + dv * math.sin(theta)
+                score = 0
+                for el in lidar_hits_local:
+                    el = (np.clip(el[0], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE), np.clip(el[1], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE))
+                    x_hit = np.clip(new_x + el[0] * math.cos(theta) - el[1] * math.sin(theta), -1, self.N)
+                    y_hit = np.clip(new_y + el[0] * math.sin(theta) + el[1] * math.cos(theta), -1, self.N)
+
+                    points = bresenham(new_x, new_y, x_hit, y_hit)[:-1]
+                    for point in points:
+                        xp, yp = int(np.clip(point[0], 0, self.N - 1)), int(np.clip(point[1], 0, self.N - 1))
+                        score += (cfg.TS_NO_OBSTACLE - self.robot_map[yp, xp])
+                    score /= len(points)
+
+                    if el[0] in (-cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE) or el[1] in (-cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE):
+                        score += (cfg.TS_NO_OBSTACLE - self.robot_map[int(np.clip(y_hit, 0, self.N - 1)), int(np.clip(x_hit, 0, self.N - 1))])
+                    else:
                         score += self.robot_map[int(np.clip(y_hit, 0, self.N - 1)), int(np.clip(x_hit, 0, self.N - 1))]
-                    if score < best_score:
-                        best_score = score
-                        best_dx = dx
-                        best_dy = dy
-                        best_dtheta = dtheta
+                if score < best_score:
+                    best_score = score
+                    best_dv = dv
+                    best_dtheta = dtheta
 
-        self.x_est = np.clip(self.x_est + best_dx * coef, 0, self.N - 1)
-        self.y_est = np.clip(self.y_est + best_dy * coef, 0, self.N - 1)
-        self.direction += best_dtheta * coef
+        self.direction += best_dtheta
+        self.x_est = np.clip(self.x_est + best_dv * math.cos(self.direction), 0, self.N - 1)
+        self.y_est = np.clip(self.y_est + best_dv * math.sin(self.direction), 0, self.N - 1)
+
 
     def get_absolute_lidar_points(self, lidar_hits_local):
         lidar_hits_local = np.clip(lidar_hits_local, -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE)
@@ -138,15 +165,12 @@ class TinySLAM(BaseSLAM):
 
         self.direction += self.odometry_input[1]
 
-        # self.x_est = kwargs['gt_pose'][0]
-        # self.y_est = kwargs['gt_pose'][1]
-        # self.direction = kwargs['gt_pose'][2]
+        iteration = kwargs['t']
 
         lidar_local_extended = lidar_hits_local.copy()
 
-
+        #if iteration > 30:
         self.scan_match(lidar_local_extended, 1.0)
-        self.scan_match_coefficient += 1
 
         new_map = self.robot_map.copy()
         old_map = self.robot_map

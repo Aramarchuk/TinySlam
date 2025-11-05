@@ -118,7 +118,7 @@ def run_simulation(slam_):
                 lidar_data_for_slam = local_hit_points
             else:
                 lidar_data_for_slam = hit_points
-            slam_algo.update(odometry_input, lidar_data_for_slam, gt_pose=pose_gt)
+            slam_algo.update(odometry_input, lidar_data_for_slam, gt_pose=pose_gt, t=t)
 
         # --- Get Pose Estimate ---
         x_est, y_est, theta_est = slam_algo.get_pose()
