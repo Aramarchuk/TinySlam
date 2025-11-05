@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import numpy as np
 import config as cfg
 import logger
 from map_utils import create_real_map
@@ -11,6 +12,7 @@ from slam_core import BaseLandmarkSLAM
 from slam_implementations import GroundTruthSLAM, OdometryOnlySLAM, TinySLAM, EkfStubSLAM
 import visualizer
 import landmark_utils
+from simple_metrics import SimpleMetrics
 
 SLAM_ALGORITHMS = {
     "gt": GroundTruthSLAM,
@@ -77,7 +79,11 @@ def run_simulation(slam_):
 
     x, y, theta = pose_gt
 
+    # Initialize metrics collector
+    metrics = SimpleMetrics()
+
     print(f"Starting simulation... Saving images to '{output_dir}/'")
+    print(f"Computing metrics for {slam_algo.__class__.__name__}...")
 
     for t in range(cfg.steps + 1):
         pose_gt = (x, y, theta)
@@ -139,6 +145,14 @@ def run_simulation(slam_):
         paths['est_x'].append(x_est)
         paths['est_y'].append(y_est)
 
+        # --- Collect Metrics ---
+        metrics.add_pose(pose_gt, pose_est)
+
+        # --- Collect Map Metrics (at the end) ---
+        if t == cfg.steps:
+            robot_map = slam_algo.get_map()
+            metrics.add_map(gt_grid_map, robot_map)
+
         # --- Visualization (map type dependent) ---
         if t % cfg.snapshot_every == 0:
             robot_map = slam_algo.get_map()
@@ -167,6 +181,21 @@ def run_simulation(slam_):
     log_file.close()
     print(f"Simulation finished. {len(os.listdir(output_dir))} files saved in '{output_dir}/'.")
     print(f"Log data saved to '{log_filepath}'")
+
+    # --- Compute and Display Metrics ---
+    print("\n" + "="*60)
+    print(f"METRICS FOR {slam_algo.__class__.__name__.upper()}")
+    print("="*60)
+
+    # Print metrics
+    metrics.print_metrics()
+
+    # Save metrics to file
+    metrics_file = os.path.join(output_dir, "metrics.txt")
+    metrics.save_metrics(metrics_file, slam_algo.__class__.__name__, map_type)
+
+    print(f"\nMetrics saved to '{metrics_file}'")
+    print("="*60)
 
 
 if __name__ == "__main__":

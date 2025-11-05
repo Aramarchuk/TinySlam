@@ -1,8 +1,6 @@
 import numpy as np
 import math
 
-from fontTools.misc.arrayTools import vectorLength
-
 from config import TS_HOLE_WIDTH, ALPHA
 from slam_core import BaseSLAM, BaseLandmarkSLAM
 from robot import integrate_motion, clamp_inside_walls
@@ -273,7 +271,7 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         H[1, 1] = -dx / (predicted_range ** 2)
         H[1, 2] = -1
         H[1, 3 + 2 * idx] = dy / (predicted_range ** 2)
-        H[1, 4 + 2 * idx] = - dx / (predicted_range ** 2)
+        H[1, 4 + 2 * idx] = -dx / (predicted_range ** 2)
 
         S = H @ self.covariance @ H.T + self.R
         K = self.covariance @ H.T @ np.linalg.inv(S)
@@ -306,9 +304,6 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         self.state[3 + 2 * idx] = landmark_x
         self.state[4 + 2 * idx] = landmark_y
         self.next_landmark_id += 1
-
-        # self.covariance[3 + 2 * idx, 3 + 2 * idx] = 1.0
-        # self.covariance[4 + 2 * idx, 4 + 2 * idx] = 1.0
 
         self.covariance[3 + 2 * idx: 5 + 2 * idx, 3 + 2 * idx: 5 + 2 * idx] = P_ll
         self.covariance[0:3, 3 + 2 * idx: 5 + 2 * idx] = P_rl

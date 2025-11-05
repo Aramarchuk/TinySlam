@@ -2,7 +2,7 @@ import numpy as np
 
 # --- Simulation ---
 N = 50                  # map size
-steps = 100           # total steps
+steps = 300           # total steps
 snapshot_every = 20    # save frame every N steps
 OUTPUT_DIR = "sim_steps" # output folder for results
 RANDOM_SEED = 42
@@ -11,7 +11,7 @@ LOG_FILE = "simulation_log.csv"
 # --- LIDAR ---
 LIDAR_MAX_RANGE = 30.0  # maximum ray range (in cells)
 # Ray angles relative to the robot: 0=forward, pi/2=left, pi=back, -pi/2=right
-NUMBER_OF_RAYS = 4
+NUMBER_OF_RAYS = 8
 LIDAR_ANGLES_RELATIVE = np.array([i * np.pi / NUMBER_OF_RAYS * 2 for i in range(NUMBER_OF_RAYS)])
 LIDAR_STEP_SIZE = 0.1 # raycasting precision/step
 # --- Robot Motion ---
