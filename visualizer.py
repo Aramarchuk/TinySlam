@@ -64,7 +64,7 @@ def save_ekf_snapshot(t, output_dir, cfg, gt_grid_map, gt_landmark_map, robot_ma
     # Draw GT landmarks (e.g., red stars)
     if gt_landmark_map:
         lm_x, lm_y = zip(*gt_landmark_map)
-        ax1.plot(lm_x, lm_y, 'r*', markersize=12, label="GT Landmarks",
+        ax1.plot(lm_x, lm_y, 'r*', markersize=12,
                  color='darkred')
 
     # Draw GT path and pose

@@ -77,11 +77,12 @@ class TinySLAM(BaseSLAM):
         self.direction = 0
         self.robot_map = np.full((N, N), 32750)
         self.odometry_input = (0, 0)
+        self.scan_match_coefficient = 0
 
     def get_map(self):
         return self.robot_map / 65600.0
 
-    def scan_match(self, lidar_hits_local):
+    def scan_match(self, lidar_hits_local, coef):
         best_dx = 0
         best_dy = 0
         best_dtheta = 0
@@ -89,37 +90,39 @@ class TinySLAM(BaseSLAM):
         search_range_xy = cfg.TS_SEARCH_RANGE_XY
         search_range_theta = cfg.TS_SEARCH_RANGE_THETA
 
-        score = 0
-        for el in lidar_hits_local:
-            xp = int(np.clip(self.x_est + el[0], 0, self.N - 1))
-            yp = int(np.clip(self.y_est + el[1], 0, self.N - 1))
-
-            score += self.robot_map[yp, xp]
-
-        best_score = score
+        best_score = float("inf")
 
         for dx in np.linspace(-search_range_xy, search_range_xy, cfg.TS_N_PARTICLES):
             for dy in np.linspace(-search_range_xy, search_range_xy, cfg.TS_N_PARTICLES):
                 for dtheta in np.linspace(-search_range_theta, search_range_theta, cfg.TS_N_PARTICLES):
+                    theta = self.direction + dtheta
+                    new_x = self.x_est + dx
+                    new_y = self.y_est + dy
                     score = 0
                     for el in lidar_hits_local:
-                        el = (np.clip(el[0], 0, self.N), np.clip(el[1], 0, self.N))
-                        xp = int(np.clip(self.x_est + dx + el[0] * math.cos(dtheta) - el[1] * math.sin(dtheta), 0, self.N - 1))
-                        yp = int(np.clip(self.y_est + dy + el[0] * math.sin(dtheta) + el[1] * math.cos(dtheta), 0, self.N - 1))
+                        el = (np.clip(el[0], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE), np.clip(el[1], -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE))
+                        x_hit = np.clip(new_x + el[0] * math.cos(theta) - el[1] * math.sin(theta), -1, self.N)
+                        y_hit = np.clip(new_y + el[0] * math.sin(theta) + el[1] * math.cos(theta), -1, self.N)
 
-                        score += self.robot_map[yp, xp]
+                        points = bresenham(new_x, new_y, x_hit, y_hit)[:-1]
+                        for point in points:
+                            xp, yp = int(np.clip(point[0], 0, self.N - 1)), int(np.clip(point[1], 0, self.N - 1))
+                            score += (cfg.TS_NO_OBSTACLE - self.robot_map[yp, xp])
+                        score /= len(points)
+
+                        score += self.robot_map[int(np.clip(y_hit, 0, self.N - 1)), int(np.clip(x_hit, 0, self.N - 1))]
                     if score < best_score:
                         best_score = score
                         best_dx = dx
                         best_dy = dy
                         best_dtheta = dtheta
 
-        self.x_est = np.clip(self.x_est + best_dx, 0, self.N - 1)
-        self.y_est = np.clip(self.y_est + best_dy, 0, self.N - 1)
-        self.direction += best_dtheta
+        self.x_est = np.clip(self.x_est + best_dx * coef, 0, self.N - 1)
+        self.y_est = np.clip(self.y_est + best_dy * coef, 0, self.N - 1)
+        self.direction += best_dtheta * coef
 
     def get_absolute_lidar_points(self, lidar_hits_local):
-        lidar_hits_local = np.clip(lidar_hits_local, -self.N, self.N)
+        lidar_hits_local = np.clip(lidar_hits_local, -cfg.LIDAR_MAX_RANGE, cfg.LIDAR_MAX_RANGE)
         lidar_hits_global = []
         for el in lidar_hits_local:
             x_global = self.x_est + el[0] * math.cos(self.direction) - el[1] * math.sin(self.direction)
@@ -139,12 +142,14 @@ class TinySLAM(BaseSLAM):
         # self.y_est = kwargs['gt_pose'][1]
         # self.direction = kwargs['gt_pose'][2]
 
-        self.scan_match(lidar_hits_local)
+        lidar_local_extended = lidar_hits_local.copy()
+
+
+        self.scan_match(lidar_local_extended, self.scan_match_coefficient / cfg.steps)
+        self.scan_match_coefficient += 1
 
         new_map = self.robot_map.copy()
         old_map = self.robot_map
-
-        lidar_local_extended = lidar_hits_local.copy()
 
         for i in range(len(lidar_hits_local)):
             vector_len = math.sqrt(lidar_hits_local[i][0] ** 2 + lidar_hits_local[i][1] ** 2)
@@ -154,8 +159,7 @@ class TinySLAM(BaseSLAM):
         lidar_hits_global = self.get_absolute_lidar_points(lidar_local_extended)
 
         for i in range(len(lidar_hits_global)):
-            el = lidar_hits_global[i]
-            xp, yp = el[0], el[1]
+            xp, yp = lidar_hits_global[i][0], lidar_hits_global[i][1]
 
             points = bresenham(self.x_est, self.y_est, xp, yp)
             for point in points[:-1]:
@@ -184,6 +188,7 @@ class TinySLAM(BaseSLAM):
                     point_clipped = (np.clip(point[0], 0, self.N - 1), np.clip(point[1], 0, self.N - 1))
                     coefficient = 1.0 - j / len(points)
                     update_point(old_map, new_map, point_clipped, cfg.TS_OBSTACLE, coeefficient=coefficient)
+
 
         self.odometry_input = odometry_input
 
