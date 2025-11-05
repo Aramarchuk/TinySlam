@@ -242,6 +242,8 @@ class EkfStubSLAM(BaseLandmarkSLAM):
         self.Q = np.diag([cfg.MOTION_NOISE_V**2, cfg.MOTION_NOISE_OMEGA**2])
         self.R = np.diag([cfg.LM_NOISE_RANGE**2, cfg.LM_NOISE_BEARING**2])
 
+        self.odometry_input = (0, 0, 0)
+
     def update_landmark(self, landmark_id, range_meas, bearing_meas):
         idx = self.landmarks[landmark_id]
         landmark_x = self.state[3 + 2 * idx]
@@ -355,9 +357,11 @@ class EkfStubSLAM(BaseLandmarkSLAM):
                 self.add_landmark(obs_id, range_meas, bearing_meas)
 
     def update(self, odometry_input, landmark_observations, **kwargs):
-        self.prediction(odometry_input)
+        self.prediction(self.odometry_input)
 
         self.correction_landmarks(landmark_observations)
 
         self.x_est, self.y_est, self.theta_est = self.state[0:3]
+
+        self.odometry_input = odometry_input
 

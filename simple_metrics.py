@@ -115,18 +115,9 @@ class SimpleMetrics:
                 if gt_map.size == 0 or est_map.size == 0:
                     continue
 
-                # Определяем тип SLAM по диапазону значений
-                est_min, est_max = np.min(est_map), np.max(est_map)
+                est_binary = (est_map > threshold).astype(int)  # 1 = свободное
+                gt_binary = gt_map.astype(int)  # 1 = свободное
 
-                # Для TinySLAM (значения ~0.5) используем инвертированную логику
-                if est_max < 1.0 and est_min > 0.0:
-                    # TinySLAM: высокие значения = свободное пространство
-                    est_binary = (est_map > threshold).astype(int)  # 1 = свободное
-                    gt_binary = gt_map.astype(int)  # 1 = свободное
-                else:
-                    # Стандартная логика
-                    est_binary = (est_map > threshold).astype(int)
-                    gt_binary = (gt_map > threshold).astype(int)
 
                 # Вычисляем точность
                 correct = np.sum(est_binary == gt_binary)
