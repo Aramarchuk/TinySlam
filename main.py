@@ -8,7 +8,7 @@ from robot import clamp_inside_walls, integrate_motion, get_noisy_odometry
 import lidar
 
 from slam_core import BaseLandmarkSLAM
-from slam_implementations import GroundTruthSLAM, OdometryOnlySLAM, TinySLAM
+from slam_implementations import GroundTruthSLAM, OdometryOnlySLAM, TinySLAM, EkfStubSLAM
 import visualizer
 import landmark_utils
 
@@ -16,6 +16,7 @@ SLAM_ALGORITHMS = {
     "gt": GroundTruthSLAM,
     "oo": OdometryOnlySLAM,
     "ts": TinySLAM,
+    "ek": EkfStubSLAM,
 }
 
 
@@ -24,7 +25,7 @@ def initialize_state(slam_):
     Initializes the world (both maps), robot (GT), SLAM algorithm, and path storage.
     """
     # Physical map (walls, obstacles)
-    gt_grid_map = create_real_map(cfg.N) #
+    gt_grid_map = create_real_map(cfg.N)
     # Landmark map (auto-generated from wall map)
     gt_landmark_map = landmark_utils.create_landmarks_from_map(gt_grid_map)
 

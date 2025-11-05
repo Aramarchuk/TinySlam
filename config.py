@@ -2,7 +2,7 @@ import numpy as np
 
 # --- Simulation ---
 N = 50                  # map size
-steps = 300           # total steps
+steps = 100           # total steps
 snapshot_every = 20    # save frame every N steps
 OUTPUT_DIR = "sim_steps" # output folder for results
 RANDOM_SEED = 42

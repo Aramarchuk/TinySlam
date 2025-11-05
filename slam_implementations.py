@@ -159,7 +159,6 @@ class TinySLAM(BaseSLAM):
 
 
     def update(self, odometry_input, lidar_hits_local, **kwargs):
-
         self.x_est += self.odometry_input[0] * math.cos(self.direction)
         self.y_est += self.odometry_input[0] * math.sin(self.direction)
 
@@ -218,6 +217,7 @@ class TinySLAM(BaseSLAM):
 
         self.robot_map = new_map
 
+
 class EkfStubSLAM(BaseLandmarkSLAM):
     """
     A stub implementation for EKF SLAM.
@@ -226,11 +226,147 @@ class EkfStubSLAM(BaseLandmarkSLAM):
     """
 
     def __init__(self, initial_pose, N):
-        # YOUR CODE HERE
-        raise NotImplementedError
+        super().__init__(initial_pose, N)
+        self.direction = 0
+        max_landmarks = 50
+        self.state_size = 3 + 2 * max_landmarks  # x, y, theta + 2 per landmark
+        self.state = np.zeros(self.state_size)
+        self.state[0] = initial_pose[0]
+        self.state[1] = initial_pose[1]
+        self.state[2] = initial_pose[2]
+
+        self.covariance = np.eye(self.state_size) * 0.1 # Covariance matrix
+        self.covariance[0:3, 0:3] = np.diag([0.01, 0.01, 0.01])
+
+        self.landmarks = {}
+        self.next_landmark_id = 0
+        self.min_observations = 3
+        self.unconfirmed_landmarks = {}
+
+        self.Q = np.diag([cfg.MOTION_NOISE_V**2, cfg.MOTION_NOISE_OMEGA**2])
+        self.R = np.diag([cfg.LM_NOISE_RANGE**2, cfg.LM_NOISE_BEARING**2])
+
+    def update_landmark(self, landmark_id, range_meas, bearing_meas):
+        idx = self.landmarks[landmark_id]
+        landmark_x = self.state[3 + 2 * idx]
+        landmark_y = self.state[4 + 2 * idx]
+
+        robot_x, robot_y, robot_theta = self.state[0:3]
+
+        dx = landmark_x - robot_x
+        dy = landmark_y - robot_y
+        predicted_range = np.sqrt(dx ** 2 + dy ** 2)
+        predicted_bearing = np.arctan2(dy, dx) - robot_theta
+        predicted_bearing = (predicted_bearing + np.pi) % (2 * np.pi) - np.pi
+
+        z_pred = np.array([predicted_range, predicted_bearing])
+        z_actual = np.array([range_meas, bearing_meas])
+        innovation = z_actual - z_pred
+        innovation[1] = (innovation[1] + np.pi) % (2 * np.pi) - np.pi
+
+        H = np.zeros((2, self.state_size))
+        H[0, 0] = -dx / predicted_range
+        H[0, 1] = -dy / predicted_range
+        H[0, 2] = 0
+        H[0, 3 + 2 * idx] = dx / predicted_range
+        H[0, 4 + 2 * idx] = dy / predicted_range
+
+        H[1, 0] = dy / (predicted_range ** 2)
+        H[1, 1] = -dx / (predicted_range ** 2)
+        H[1, 2] = -1
+        H[1, 3 + 2 * idx] = -dy / (predicted_range ** 2)
+        H[1, 4 + 2 * idx] = dx / (predicted_range ** 2)
+
+        S = H @ self.covariance @ H.T + self.R
+        K = self.covariance @ H.T @ np.linalg.inv(S)
+
+        self.state = self.state + K @ innovation
+        self.covariance = (np.eye(self.state_size) - K @ H) @ self.covariance
+
+        self.state[2] = (self.state[2] + np.pi) % (2 * np.pi) - np.pi
+
+    def add_landmark(self, landmark_id, range_meas, bearing_meas):
+        robot_x, robot_y, robot_theta = self.state[0:3]
+        landmark_x = robot_x + range_meas * np.cos(bearing_meas + robot_theta)
+        landmark_y = robot_y + range_meas * np.sin(bearing_meas + robot_theta)
+
+        theta = robot_theta
+        s = math.sin(theta + bearing_meas)
+        c = math.cos(theta + bearing_meas)
+        Gx = np.array([[1, 0, -range_meas * s],
+                       [0, 1, range_meas * c]])
+        Gz = np.array([[c, -range_meas * s],
+                       [s, range_meas * c]])
+
+        P_rr = self.covariance[0:3, 0:3]
+        P_ll = Gx @ P_rr @ Gx.T + Gz @ self.R @ Gz.T
+        P_rl = P_rr @ Gx.T
+        # вставляем P_ll в ковариацию на позицию нового landmark и P_rl в off-diagonal
+
+        idx = self.next_landmark_id
+        self.landmarks[landmark_id] = idx
+        self.state[3 + 2 * idx] = landmark_x
+        self.state[4 + 2 * idx] = landmark_y
+        self.next_landmark_id += 1
+
+        self.covariance[3 + 2 * idx, 3 + 2 * idx] = 1.0
+        self.covariance[4 + 2 * idx, 4 + 2 * idx] = 1.0
+
+        self.covariance[3 + 2 * idx: 5 + 2 * idx, 3 + 2 * idx: 5 + 2 * idx] = P_ll
+        self.covariance[0:3, 3 + 2 * idx: 5 + 2 * idx] = P_rl
+        self.covariance[3 + 2 * idx: 5 + 2 * idx, 0:3] = P_rl.T
+
+        self.landmarks[landmark_id] = idx
+
+
+    def prediction(self, odometry_input):
+        v, omega, dt = odometry_input
+
+        x, y, theta = self.state[0], self.state[1], self.state[2]
+
+        x_new = x + v * np.cos(theta) * dt
+        y_new = y + v * np.sin(theta) * dt
+        theta_new = theta + omega * dt
+        theta_new = (theta_new + np.pi) % (2 * np.pi) - np.pi
+
+        self.state[0], self.state[1], self.state[2] = x_new, y_new, theta_new
+
+        # Якобиан по состоянию: F = ∂g/∂v |_(μ_{t-1}, u_t)
+        F = np.array([
+            [1.0, 0.0, -v * np.sin(theta) * dt],
+            [0.0, 1.0, v * np.cos(theta) * dt],
+            [0.0, 0.0, 1.0],
+        ])
+
+        # Якобиан по шумам управления: L = ∂g/∂w (w = [v, ω])
+        L = np.array([
+            [np.cos(theta) * dt, 0.0],
+            [np.sin(theta) * dt, 0.0],
+            [0.0, dt],
+        ])
+
+        F_big = np.eye(self.state_size)
+        F_big[0:3, 0:3] = F
+
+        L_big = np.zeros((self.state_size, 2))
+        L_big[0:3, 0:2] = L
+
+        # Полное обновление ковариации: P ← F P Fᵀ + L Q Lᵀ
+        self.covariance = F_big @ self.covariance @ F_big.T + L_big @ self.Q @ L_big.T
+
+    def correction_landmarks(self, observations):
+        for obs_id, range_meas, bearing_meas in observations:
+            if obs_id in self.landmarks:
+                self.update_landmark(obs_id, range_meas, bearing_meas)
+            else:
+                self.add_landmark(obs_id, range_meas, bearing_meas)
 
     def update(self, odometry_input, landmark_observations, **kwargs):
-        # YOUR CODE HERE
-        raise NotImplementedError
+        v, omega, dt = odometry_input
 
-    # Don't forget to update map!
+        self.prediction(odometry_input)
+
+        self.correction_landmarks(landmark_observations)
+
+        self.x_est, self.y_est, self.theta_est = self.state[0:3]
+
