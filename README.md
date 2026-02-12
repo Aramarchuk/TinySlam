@@ -1,6 +1,11 @@
 # Simple 2D SLAM Simulator
 
-This project is a Python-based simulator for experimenting with 2D SLAM (Simultaneous Localization and Mapping) algorithms. It simulates a robot in a 2D environment, supporting both grid-based (like TinySLAM) and landmark-based (like EKFSLAM) algorithms.
+**Course Project: Algorithm Engineering @ NUP**
+
+This project is an educational 2D SLAM (Simultaneous Localization and Mapping) simulator developed for the *Algorithm Engineering* course at **NUP**. It is designed to help students understand and implement core SLAM concepts, covering both grid-based (e.g., TinySLAM) and landmark-based (e.g., EKF SLAM) approaches.
+
+> **Note:** The core simulation mechanism (environment, sensor raycasting, and basic robot kinematics) is largely adapted/borrowed from existing educational resources to focus efforts on algorithm implementation.
+
 ## Features
 
 * **2D Grid World:** Simulates a robot in a 2D environment with predefined obstacles.
@@ -14,8 +19,10 @@ This project is a Python-based simulator for experimenting with 2D SLAM (Simulta
 
 ## Included Algorithms
 
-1.  **`GroundTruthSLAM`**: A "cheater" algorithm that uses the perfect, noise-free ground truth pose for localization. This is useful as a baseline and for testing the integrity of the simulator's mapping and logging.
-2.  **`EkfStubSLAM`**: A "stub" implementation for landmark-based SLAM. It correctly receives landmark observations, but only uses odometry for localization (pending EKF logic).
+1.  **`GroundTruthSLAM` (`gt`)**: A baseline "cheater" algorithm that uses the perfect, noise-free ground truth pose for localization. Useful for debugging/baseline.
+2.  **`OdometryOnlySLAM` (`oo`)**: Uses only noisy odometry updates. Demonstrates the effect of drift without correction.
+3.  **`TinySLAM` (`ts`)**: A grid-based SLAM implementation using particle filters/scan matching.
+4.  **`EkfStubSLAM` (`ek`)**: A "stub" implementation for landmark-based SLAM (EKF logic to be implemented).
 
 ## File Structure
 
@@ -38,10 +45,31 @@ This project is a Python-based simulator for experimenting with 2D SLAM (Simulta
 
 ## How to Run
 
-**Run with GroundTruthSLAM:**
-    ```bash
-    python main.py --slam gt
-    ```
+The simulation is controlled via the command line. Use the `--slam` argument to select the algorithm.
+
+### 1. Ground Truth (Baseline)
+Use the exact robot position (cheating) to verify map generation.
+```bash
+python main.py --slam gt
+```
+
+### 2. Odometry Only
+Relies solely on noisy wheel encoders. Observe how the estimated position drifts from the ground truth over time.
+```bash
+python main.py --slam oo
+```
+
+### 3. TinySLAM (Grid-based)
+Runs the TinySLAM (particle filter / scan matching) algorithm.
+```bash
+python main.py --slam ts
+```
+
+### 4. EKF Stub (Landmark-based)
+Runs the framework for Extended Kalman Filter SLAM using landmark detections.
+```bash
+python main.py --slam ek
+```
 
 ## How to Test
 
@@ -52,17 +80,10 @@ pytest
 ```
 
 ## Output
-The simulation creates a new, timestamped directory in the sim_steps/ folder for each run (e.g., sim_steps/run_20251021_140000/).
+The simulation creates a new, timestamped directory in the `sim_steps/` folder for each run (e.g., `sim_steps/run_20251021_140000/`).
 
 This directory will contain:
 
- - simulation_log_...csv: A CSV file with a detailed log of GT pose, estimated pose, and sensor data for each step.
- - step_XXX.png: Snapshot images generated ```snapshot_every```  steps (as defined in config.py).
-
-## What to do?
-- Implement **OdometryOnlySLAM** and **TinySLAM** algorithms in `slam_implementations.py` to see how they perform in this simulated environment!
-  - **OdometryOnlySLAM** — a naive implementation that trusts the noisy odometry completely. It does not use Lidar data for pose correction, which clearly demonstrates the effect of accumulated "drift" over time.
-  - **TinySLAM** — the algorithm we talked about during the first lecture
-  - EKF Slam — the algorithm we talked about during the second lecture 
-- Adjust `main.py` to run with different SLAM algorithm based on CLI arguments 
+ - `simulation_log_...csv`: A CSV file with a detailed log of GT pose, estimated pose, and sensor data for each step.
+ - `step_XXX.png`: Snapshot images generated every `snapshot_every` steps (as defined in `config.py`). 
 
